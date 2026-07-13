@@ -25,6 +25,34 @@ Celery worker: fetch diff → chunk → LLM review → parse response → post c
 | `workers/` | Celery background tasks |
 | `routers/` | FastAPI API endpoints |
 
+## Project Structure
+
+```
+├── infra/
+│   ├── docker-compose.yml       # Mongo + Redis + backend + celery-worker
+│   └── .env.example             # Template for env vars
+├── backend/
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   └── app/
+│       ├── main.py              # FastAPI app, lifespan, CORS, router mounts
+│       ├── config.py            # Pydantic Settings (env-based config)
+│       ├── deps.py              # Dependency injection
+│       ├── vcs/                 # VCS provider abstraction
+│       ├── llm/                 # LLM provider abstraction
+│       ├── models/              # Beanie document models
+│       ├── schemas/             # Pydantic request/response schemas
+│       ├── services/            # Business logic
+│       ├── prompts/             # LLM prompt templates
+│       ├── workers/             # Celery background tasks
+│       └── routers/             # FastAPI API endpoints
+├── docs/
+│   ├── PRODUCT.md
+│   ├── ARCHITECTURE.md
+│   └── DECISIONS.md
+└── frontend/                    # Empty — dashboard in future phase
+```
+
 ## Config Precedence
 
 `.codereview.yml` in repo → DB config → app defaults
