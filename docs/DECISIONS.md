@@ -732,3 +732,82 @@ exists, return its ID instead of creating a duplicate.
 - (+) Works across multiple API instances
 - (-) Race condition possible if two webhooks arrive simultaneously (handled
   by upsert atomicity in MongoDB)
+
+---
+
+## ADR-018: VCS Provider Registration Pattern
+
+**Status**: Accepted
+
+### Context
+
+The factory needs to discover available VCS providers at runtime. Providers are
+in separate subdirectories (`vcs/github/`, `vcs/gitlab/`). The factory should
+not hardcode provider imports — adding a new VCS should only require creating
+the provider package and registering it.
+
+### Alternatives Considered
+
+1. **Hardcoded dict in factory** — Factory has a static mapping of vcs_type → class.
+   - Rejected because: Adding a VCS requires modifying the factory. Violates
+     open-closed principle. Factory becomes a maintenance bottleneck.
+
+2. **Entry points / plugin system** — Use Python entry points for provider discovery.
+   - Rejected because: Overkill for 2-3 providers. Adds packaging complexity.
+     Harder to debug import issues.
+
+3. **Lazy import on first use** — Factory imports provider module when first requested.
+   - Rejected because: Import errors discovered at runtime, not at startup.
+     Harder to test — can't verify all providers load correctly at boot.
+
+### Decision
+
+**Registry + auto-import pattern**:
+- Each provider's `__init__.py` calls `register_provider(vcs_type, ProviderClass)`
+- Top-level `app/vcs/__init__.py` imports all provider packages to trigger registration
+- `get_provider(vcs_type)` looks up from the registry dict
+
+### Consequences
+
+- (+) Adding a VCS = create package + call register_provider() in __init__.py
+- (+) All providers registered at import time — startup fails if a provider is broken
+- (+) Factory is decoupled from concrete providers
+- (-) Import order matters (mitigated by explicit imports in vcs/__init__.py)
+
+---
+
+## ADR-019: Shared ReviewComment Schema
+
+**Status**: Accepted
+
+### Context
+
+`ReviewComment` is used by both the VCS layer (posted to GitHub/GitLab) and
+the review pipeline (stored in MongoDB). Need to decide where this model lives.
+
+### Alternatives Considered
+
+1. **In VCS models** — Define `ReviewComment` in `app/vcs/models.py`.
+   - Rejected because: Couples the review data model to the VCS layer. The review
+     pipeline shouldn't depend on `vcs/` for its data structures.
+
+2. **In Beanie models** — Define as a Beanie embedded model in `app/models/review.py`.
+   - Rejected because: Forces VCS layer to import Beanie models. VCS layer should
+     not depend on database ODM.
+
+3. **In shared schemas** — Define in `app/schemas/review.py`.
+   - Selected because: Both VCS and review layers can import from `schemas/` without
+     circular dependencies. Pydantic model works for both API and storage (Beanie
+     embeds Pydantic models).
+
+### Decision
+
+**`app/schemas/review.py`** contains `ReviewComment`, `CommentSeverity`, and
+`CommentCategory`. Imported by both VCS providers and the review pipeline.
+
+### Consequences
+
+- (+) No circular dependencies
+- (+) Single source of truth for review comment structure
+- (+) Pydantic model works for API validation, storage, and VCS posting
+- (-) schemas/ becomes a shared dependency (acceptable — it's intentionally shared)
