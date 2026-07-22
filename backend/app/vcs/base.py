@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 from app.schemas.review import ReviewComment
-from app.vcs.models import RepositoryInfo, WebhookEvent
+from app.vcs.models import PullRequestDiff, RepositoryInfo, WebhookEvent
 
 
 class VCSProvider(ABC):
@@ -13,23 +14,27 @@ class VCSProvider(ABC):
     def validate_webhook(self, headers: dict[str, str], body: bytes) -> bool: ...
 
     @abstractmethod
-    def parse_webhook_event(self, headers: dict[str, str], body: dict) -> WebhookEvent: ...
+    def parse_webhook_event(
+        self, headers: dict[str, str], body: dict[str, Any]
+    ) -> WebhookEvent | None: ...
 
     @abstractmethod
-    async def get_diff(self, repo: str, pr_number: int, head_sha: str) -> str: ...
+    def get_diff(self, repo: str, pr_number: int, installation_id: int) -> PullRequestDiff: ...
 
     @abstractmethod
-    async def post_review(
+    def post_review(
         self,
         repo: str,
         pr_number: int,
         comments: list[ReviewComment],
         summary: str,
         head_sha: str,
+        installation_id: int,
+        review_key: str,
     ) -> None: ...
 
     @abstractmethod
-    async def get_file_contents(self, repo: str, path: str, ref: str) -> str: ...
+    def get_file_contents(self, repo: str, path: str, ref: str, installation_id: int) -> str: ...
 
     @abstractmethod
-    async def get_repo_info(self, repo: str) -> RepositoryInfo: ...
+    def get_repo_info(self, repo: str, installation_id: int) -> RepositoryInfo: ...

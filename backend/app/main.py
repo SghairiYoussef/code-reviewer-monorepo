@@ -1,24 +1,25 @@
-from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
-from beanie import init_beanie
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from redis.asyncio import Redis
 
 from app.config import settings
+from app.database import create_database_client
+from app.deps import require_api_key
 from app.routers import repos, reviews, webhooks
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    client = AsyncIOMotorClient(settings.mongo_uri)
-    await init_beanie(
-        database=client.ai_code_reviewer,
-        document_models=[],
-    )
+    client = await create_database_client()
+    redis = Redis.from_url(settings.redis_url)
+    app.state.mongo = client
+    app.state.redis = redis
     yield
-    client.close()
+    await redis.aclose()
+    await client.close()
 
 
 app = FastAPI(
@@ -36,10 +37,23 @@ app.add_middleware(
 )
 
 app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
-app.include_router(reviews.router, prefix="/api/v1/reviews", tags=["reviews"])
-app.include_router(repos.router, prefix="/api/v1/repos", tags=["repos"])
+protected = [Depends(require_api_key)]
+app.include_router(
+    reviews.router, prefix="/api/v1/reviews", tags=["reviews"], dependencies=protected
+)
+app.include_router(repos.router, prefix="/api/v1/repos", tags=["repos"], dependencies=protected)
 
 
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/ready")
+async def readiness_check() -> dict[str, str]:
+    try:
+        await app.state.mongo.admin.command("ping")
+        await app.state.redis.ping()
+    except Exception as exc:
+        raise HTTPException(503, "A required dependency is unavailable") from exc
+    return {"status": "ready"}

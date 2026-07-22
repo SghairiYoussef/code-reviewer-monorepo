@@ -1,6 +1,7 @@
 # AI Code Reviewer
 
-Automated AI-powered code review for GitHub and GitLab.
+Automated AI-powered pull-request review. GitHub is supported first; GitLab is
+kept behind the provider boundary until its inline-comment contract is complete.
 
 ## Quick Start
 
@@ -9,12 +10,12 @@ Automated AI-powered code review for GitHub and GitLab.
 git clone <repo-url>
 cd code-reviewer-monorepo
 
-# Environment
-cp backend/.env.example backend/.env
-# Edit backend/.env with your API keys
+# Environment (PowerShell)
+Copy-Item infra/.env.example infra/.env
+# Edit infra/.env with your GitHub App, OpenAI, and management API credentials
 
 # Run
-docker compose up -d
+docker compose -f infra/docker-compose.yml up --build -d
 ```
 
 ## Development
@@ -31,7 +32,8 @@ pytest
 
 ## Configuration
 
-Set environment variables in `backend/.env`:
+Set environment variables in `infra/.env` for Docker Compose, or export them in
+your shell for local development:
 
 | Variable | Description |
 |----------|-------------|
@@ -43,3 +45,15 @@ Set environment variables in `backend/.env`:
 | `GITLAB_URL` | GitLab instance URL |
 | `GITLAB_TOKEN` | GitLab API token |
 | `OPENAI_API_KEY` | OpenAI API key |
+| `API_KEY` | Key required in `X-API-Key` for `/api/v1/*` |
+
+## Runtime endpoints
+
+- `POST /webhooks` — GitHub App webhook receiver (signature authenticated)
+- `GET /health` — process liveness
+- `GET /ready` — MongoDB and Redis readiness
+- `/api/v1/*` — management/read API protected by `X-API-Key`
+
+Repository configuration is loaded only from `.codereview.yml` at the pull
+request's trusted base commit. Server-enforced database policy has final
+precedence.

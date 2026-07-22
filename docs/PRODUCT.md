@@ -11,7 +11,7 @@ issues, and style problems before human reviewers spend time on the first pass.
 ## MVP Scope
 
 - Webhook-driven: push → analyze → comment
-- GitHub (PRs) + GitLab (MRs) support
+- GitHub pull requests; GitLab merge requests follow after the GitHub contract is validated
 - Provider-agnostic LLM layer (OpenAI GPT-4o first)
 - Multi-language code review
 - Inline comments + PR/MR summary per review
@@ -22,4 +22,5 @@ issues, and style problems before human reviewers spend time on the first pass.
 - Web dashboard
 - CI/CD pipeline gates
 - Code generation or fix suggestions
-- Authentication/authorization
+- Interactive user authentication and a web dashboard. Webhook authentication and
+  management-API authorization are mandatory service boundaries.

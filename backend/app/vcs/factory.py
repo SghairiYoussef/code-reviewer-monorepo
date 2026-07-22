@@ -5,6 +5,8 @@ _PROVIDERS: dict[str, type[VCSProvider]] = {}
 
 
 def register_provider(vcs_type: str, provider_cls: type[VCSProvider]) -> None:
+    if vcs_type in _PROVIDERS:
+        raise ValueError(f"VCS provider already registered: {vcs_type}")
     _PROVIDERS[vcs_type] = provider_cls
 
 

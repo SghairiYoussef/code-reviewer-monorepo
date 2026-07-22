@@ -2,6 +2,45 @@
 
 Each decision follows the ADR format: **Context → Alternatives Considered → Decision → Consequences**.
 
+## 2026 Architecture Review Amendments
+
+These amendments supersede conflicting language in the original MVP ADRs.
+
+1. **GitHub-first delivery**: GitHub is the only registered provider. GitLab
+   remains a compile-checked skeleton until authentication, diff coordinates,
+   and comment posting are validated end-to-end. This corrects the premature
+   “implemented” status while preserving ADR-009.
+2. **Structured diff coordinates**: provider-neutral comments contain a file,
+   line, diff side, and old/new coordinates. The worker validates every model
+   comment against an actual changed line before posting. This supersedes the
+   underspecified shape in ADR-012 and ADR-019.
+3. **Trusted configuration**: `.codereview.yml` is fetched from the PR base
+   commit, never the untrusted head. It may set only bounded review behavior.
+   Server-enforced DB policy wins over repository configuration. This
+   supersedes ADR-010.
+4. **Mandatory service authentication**: interactive dashboard identity remains
+   out of MVP scope, but webhook signatures and API-key authorization are
+   mandatory. Provider host, repository ID, installation ID, and delivery ID
+   are part of the persisted trust context.
+5. **Synchronous worker integrations**: FastAPI performs asynchronous intake;
+   Celery workers use synchronous VCS and LLM SDKs. A task owns the event loop
+   used for async Beanie persistence. This replaces the `asyncio.to_thread()`
+   assumption in ADR-014 and ADR-015.
+6. **Retry-safe delivery**: unique indexes cover both webhook delivery IDs and
+   reviewed commits. Posted GitHub reviews contain a stable marker so a retry
+   after a partial failure does not post the same review twice. This expands
+   ADR-017 beyond database insertion.
+7. **Database decision is provisional**: MongoDB remains the MVP store, but
+   ADR-003 must be revisited once installation, repository, review-attempt, and
+   reporting access patterns are measured. “No transaction needed” is not an
+   assumption future features may rely upon. The runtime uses PyMongo's native
+   `AsyncMongoClient`; the original Motor implementation detail is superseded.
+8. **One bounded structured model call**: comment and summary output are
+   produced together, capped, schema-validated, and treated as untrusted. The
+   model name remains deployment configuration rather than an architectural
+   constant, superseding the two-call detail in ADR-012 and fixed-model detail
+   in ADR-008.
+
 ---
 
 ## ADR-001: Python (FastAPI) as Backend Stack

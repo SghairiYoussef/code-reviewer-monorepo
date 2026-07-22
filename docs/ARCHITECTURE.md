@@ -18,13 +18,13 @@ Celery worker: fetch diff → chunk → LLM review → parse response → post c
 
 | Layer | Purpose | Status |
 |-------|---------|--------|
-| `vcs/` | VCS provider abstraction (webhook validation, diff fetch, comment posting) | ✅ Implemented |
-| `llm/` | LLM provider abstraction (code review, summarization) | Pending |
-| `services/` | Business logic — orchestrator, diff parser, config loader | Pending |
-| `models/` | Beanie document models (Review, RepoConfig, Organization) | Pending |
+| `vcs/` | VCS contract and GitHub implementation; GitLab is deliberately unregistered | GitHub implemented |
+| `llm/` | Bounded structured OpenAI review | Implemented |
+| `services/` | Ingestion, trusted config merge, diff-coordinate validation | Implemented |
+| `models/` | Beanie Review and RepositoryConfig documents | Implemented |
 | `schemas/` | Shared Pydantic schemas (ReviewComment) | ✅ Implemented |
-| `workers/` | Celery background tasks | Pending |
-| `routers/` | FastAPI API endpoints | Partial |
+| `workers/` | Idempotent Celery review task | Implemented |
+| `routers/` | Webhook and API-key-protected management endpoints | Implemented |
 
 ## VCS Abstraction Layer
 
@@ -87,6 +87,16 @@ single `VCSProvider` interface. The core review pipeline never imports from
 └── frontend/                    # Empty — dashboard in future phase
 ```
 
-## Config Precedence
+## Config and Trust Precedence
 
-`.codereview.yml` in repo → DB config → app defaults
+Server-enforced DB policy → `.codereview.yml` from the PR **base commit** → app
+defaults. Repository files can only set bounded review fields; credentials,
+provider/model selection, and service limits are never read from PR content.
+
+## Runtime Boundaries
+
+- FastAPI validates signatures, persists an idempotency record, and dispatches work.
+- Celery workers use synchronous VCS/LLM clients; asynchronous code is limited to
+  Beanie persistence within one task-owned event loop.
+- `GET /health` is liveness-only; `GET /ready` verifies MongoDB and Redis.
+- Management endpoints require `X-API-Key`. Webhooks use provider signatures.

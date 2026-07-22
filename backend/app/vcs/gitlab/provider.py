@@ -1,8 +1,10 @@
+from typing import Any
+
 from app.schemas.review import ReviewComment
 from app.vcs.base import VCSProvider
 from app.vcs.gitlab.client import GitLabClient
 from app.vcs.gitlab.webhook import GitLabWebhookValidator
-from app.vcs.models import RepositoryInfo, WebhookEvent
+from app.vcs.models import PullRequestDiff, RepositoryInfo, WebhookEvent
 
 
 class GitLabProvider(VCSProvider):
@@ -17,24 +19,28 @@ class GitLabProvider(VCSProvider):
     def validate_webhook(self, headers: dict[str, str], body: bytes) -> bool:
         raise NotImplementedError
 
-    def parse_webhook_event(self, headers: dict[str, str], body: dict) -> WebhookEvent:
+    def parse_webhook_event(
+        self, headers: dict[str, str], body: dict[str, Any]
+    ) -> WebhookEvent | None:
         raise NotImplementedError
 
-    async def get_diff(self, repo: str, pr_number: int, head_sha: str) -> str:
+    def get_diff(self, repo: str, pr_number: int, installation_id: int) -> PullRequestDiff:
         raise NotImplementedError
 
-    async def post_review(
+    def post_review(
         self,
         repo: str,
         pr_number: int,
         comments: list[ReviewComment],
         summary: str,
         head_sha: str,
+        installation_id: int,
+        review_key: str,
     ) -> None:
         raise NotImplementedError
 
-    async def get_file_contents(self, repo: str, path: str, ref: str) -> str:
+    def get_file_contents(self, repo: str, path: str, ref: str, installation_id: int) -> str:
         raise NotImplementedError
 
-    async def get_repo_info(self, repo: str) -> RepositoryInfo:
+    def get_repo_info(self, repo: str, installation_id: int) -> RepositoryInfo:
         raise NotImplementedError

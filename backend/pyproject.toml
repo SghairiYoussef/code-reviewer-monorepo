@@ -7,11 +7,9 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
     "beanie>=1.25.0",
-    "motor>=3.5.0",
     "celery[redis]>=5.4.0",
     "redis>=5.0.0",
     "pygithub>=2.3.0",
-    "python-gitlab>=4.0.0",
     "openai>=1.40.0",
     "pydantic-settings>=2.4.0",
     "pyyaml>=6.0",
@@ -42,5 +40,10 @@ select = ["E", "F", "I", "N", "UP", "B", "A", "SIM"]
 python_version = "3.12"
 strict = true
 
+[[tool.mypy.overrides]]
+module = ["celery.*", "yaml"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]
